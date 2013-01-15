@@ -1,0 +1,13 @@
+{
+  "name": "thumb-js",
+  "version": "0.0.1",
+  "dependencies": {
+    "express": "2.5.x",
+    "node-uuid": "1.4.0"
+    "aws-sdk": "0.9.1-pre.2"
+  },
+  "engines": {
+    "node": "0.8.x",
+    "npm": "1.1.x"
+  }
+}
