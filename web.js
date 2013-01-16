@@ -15,6 +15,7 @@ var app = express.createServer(express.logger());
 // Render a page and redirect to the image file
 app.get('/thumb', function(request, response) {
     var address = url.parse(request.url, true).query.href;
+	var size = parseInt(url.parse(request.url, true).query.size || 64);
     var bucket = process.env.AWS_BUCKET;
     var key = address.replace('http://', '').replace(/[^a-zA-Z0-9]/g, '-');
     var dest =  key + '.jpg';
@@ -58,7 +59,7 @@ app.get('/thumb', function(request, response) {
                             if (err) throw err
                             // shrink dest and composite favicon into bottom left corner (drop shadow?)
                             var cmdLine = ['convert', dest, 
-                                           '-resize 64x64',
+                                           '-resize ' + size + 'x' + size,,
                                            '-gravity South-West',
                                            '-draw "image over 0,0, 0,0 \'' + faviconPath + '\'"',
                                             dest].join(' ');
