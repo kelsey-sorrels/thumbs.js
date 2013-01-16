@@ -15,7 +15,7 @@ var app = express.createServer(express.logger());
 // Render a page and redirect to the image file
 app.get('/thumb', function(request, response) {
     var address = url.parse(request.url, true).query.href;
-    var bucket = 'thumbs-js';
+    var bucket = process.env.AWS_BUCKET;
     var key = address.replace('http://', '').replace(/[^a-zA-Z0-9]/g, '-');
     var dest =  key + '.jpg';
 	console.log('Recv reqeust for: ' + address);
