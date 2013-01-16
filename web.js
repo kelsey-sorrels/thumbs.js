@@ -18,7 +18,7 @@ app.get('/thumb', function(request, response) {
 	var size = parseInt(url.parse(request.url, true).query.size || 64);
     var bucket = process.env.AWS_BUCKET;
     var key = address.replace('http://', '').replace(/[^a-zA-Z0-9]/g, '-');
-    var dest =  key + '.jpg';
+    var dest =  key + '-' + size + '.jpg';
 	console.log('Recv reqeust for: ' + address);
 	console.log('Checking cache @ http://s3.amazonaws.com/' + bucket + '/' + dest);
     // Perform a HEAD on 'http://s3.amazonaws.com/' + bucket + '/' + dest
