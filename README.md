@@ -3,6 +3,8 @@ thumbs.js
 
 Heroku-supported website thumbnail webservice backed by S3
 
+<img src="http://thumbs-js.herokuapp.com/thumb?href=http://google.com&size=300"/>
+
 To use:
 ```
 git clone https://github.com/aaron-santos/thumbs.js.git
