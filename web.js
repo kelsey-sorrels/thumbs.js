@@ -39,7 +39,7 @@ app.get('/thumb', function(request, response) {
             // else make thumb
             console.log('Cache miss.');
             // Call bin/phantomjs ...
-            var cmdLine = ['phantomjs', './src/phantom.js/thumb.js', address, dest].join(' '); 
+            var cmdLine = ['phantomjs', './src/phantom.js/thumb.js', address, '/tmp/' + dest].join(' '); 
             console.log('Calling: ' + cmdLine);
             sys.exec(cmdLine, function (error, stdout, stderr) {
                 // get favicon using google.com/s2
@@ -54,28 +54,33 @@ app.get('/thumb', function(request, response) {
                     })
 
                     res.on('end', function(){
-                        var faviconPath = key + '-favicon.png';
+                        var faviconPath = '/tmp/' + key + '-favicon.png';
                         fs.writeFile(faviconPath, imagedata, 'binary', function(err){
                             if (err) throw err
                             // shrink dest and composite favicon into bottom left corner (drop shadow?)
-                            var cmdLine = ['convert', dest, 
+                            var cmdLine = ['convert', '/tmp/' + dest, 
                                            '-resize ' + size + 'x' + size,,
                                            '-gravity South-West',
                                            '-draw "image over 0,0, 0,0 \'' + faviconPath + '\'"',
-                                            dest].join(' ');
+                                           '/tmp/' + dest].join(' ');
                             console.log('Calling: ' + cmdLine);
                             sys.exec(cmdLine, function (error, stdout, stderr) {
                                 // Read the image file as data
-                                fs.readFile(dest, function (err, data) {
+                                fs.readFile('/tmp/' + dest, function (err, data) {
                                     // upload to s3
                                     s3.client.putObject({Bucket: bucket,
                                                          Key: dest,
                                                          ContentType: 'image/jpeg',
                                                          ACL: 'public-read',
                                                          Body: data}, function () {
-                                        // redirect to s3
-                                        response.writeHead(302, {'Location': 'http://s3.amazonaws.com/' + bucket + '/' + dest});
-                                        response.end();
+										// remove tmp files
+										fs.unlink('/tmp/' + dest, function () {
+                                            fs.unlink(faviconPath, function () {
+                                                // redirect to s3
+                                                response.writeHead(302, {'Location': 'http://s3.amazonaws.com/' + bucket + '/' + dest});
+                                                response.end();
+                                            });
+                                        });
                                     });
                                 });
                             });
