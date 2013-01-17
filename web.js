@@ -19,6 +19,7 @@ app.get('/thumb', function(request, response) {
     var bucket = process.env.AWS_BUCKET;
     var key = address.replace('http://', '').replace(/[^a-zA-Z0-9]/g, '-');
     var dest =  key + '-' + size + '.jpg';
+	var destPath = '/tmp/' + dest;
     console.log('Recv reqeust for: ' + address);
     console.log('Checking cache @ http://s3.amazonaws.com/' + bucket + '/' + dest);
     // Perform a HEAD on 'http://s3.amazonaws.com/' + bucket + '/' + dest
@@ -39,7 +40,7 @@ app.get('/thumb', function(request, response) {
             // else make thumb
             console.log('Cache miss.');
             // Call bin/phantomjs ...
-            var cmdLine = ['phantomjs', './src/phantom.js/thumb.js', address, './tmp/' + dest].join(' '); 
+            var cmdLine = ['phantomjs', './src/phantom.js/thumb.js', address, destPath].join(' '); 
             console.log('Calling: ' + cmdLine);
             sys.exec(cmdLine, function (error, stdout, stderr) {
                 // get favicon using google.com/s2
@@ -54,23 +55,24 @@ app.get('/thumb', function(request, response) {
                     })
 
                     res.on('end', function(){
-                        var faviconPath = './tmp/' + key + '-favicon.png';
+                        var faviconPath = '/tmp/' + key + '-favicon.png';
                         fs.writeFile(faviconPath, imagedata, 'binary', function(err){
                             if (err) throw err
                             // shrink dest and composite favicon into bottom left corner (drop shadow?)
-                            var cmdLine = ['convert', './tmp/' + dest, 
+                            var cmdLine = ['convert',
+                                           destPath, 
                                            '-resize ' + size + 'x' + size,,
                                            '-gravity South-West',
                                            '-draw "image over 0,0, 0,0 \'' + faviconPath + '\'"',
-                                           './tmp/' + dest].join(' ');
+                                           destPath].join(' ');
                             console.log('Calling: ' + cmdLine);
                             sys.exec(cmdLine, function (err, stdout, stderr) {
                                 if (err) throw err;
-                                console.log('Reading contents of: ./tmp/' + dest);
+                                console.log('Reading contents of: ' + destPath);
                                 // Read the image file as data
-                                fs.readFile('./tmp/' + dest, function (err, data) {
+                                fs.readFile(destPath, function (err, data) {
                                     if (err) throw err;
-                                    console.log('Uploading to S3: ./tmp/' + dest + ' to ' + bucket + '/' + dest);
+                                    console.log('Uploading to S3: ' + destPath + ' to ' + bucket + '/' + dest);
                                     // upload to s3
                                     s3.client.putObject({Bucket: bucket,
                                                          Key: dest,
@@ -79,7 +81,7 @@ app.get('/thumb', function(request, response) {
                                                          Body: data}, function () {
                                         console.log('Upload complete. Removing tmp files');
                                         // remove tmp files
-                                        fs.unlink('./tmp/' + dest, function () {
+                                        fs.unlink(destPath, function () {
                                             fs.unlink(faviconPath, function () {
                                                 console.log('Sending response');
                                                 // redirect to s3
