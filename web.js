@@ -15,31 +15,31 @@ var app = express.createServer(express.logger());
 // Render a page and redirect to the image file
 app.get('/thumb', function(request, response) {
     var address = url.parse(request.url, true).query.href;
-	var size = parseInt(url.parse(request.url, true).query.size || 64);
+    var size = parseInt(url.parse(request.url, true).query.size || 64);
     var bucket = process.env.AWS_BUCKET;
     var key = address.replace('http://', '').replace(/[^a-zA-Z0-9]/g, '-');
     var dest =  key + '-' + size + '.jpg';
-	console.log('Recv reqeust for: ' + address);
-	console.log('Checking cache @ http://s3.amazonaws.com/' + bucket + '/' + dest);
+    console.log('Recv reqeust for: ' + address);
+    console.log('Checking cache @ http://s3.amazonaws.com/' + bucket + '/' + dest);
     // Perform a HEAD on 'http://s3.amazonaws.com/' + bucket + '/' + dest
-	http.request({host: 's3.amazonaws.com',
+    http.request({host: 's3.amazonaws.com',
                   port: 80,
                   path: '/' + bucket + '/' + dest,
                   method: 'HEAD'}, function (res) {
         console.log('Response code: ' + res.statusCode);
         // if 200 then redirect
-		if (res.statusCode == 200)
-		{
+        if (res.statusCode == 200)
+        {
             console.log('Cache hit. Redirecting.');
             response.writeHead(302, {'Location': 'http://s3.amazonaws.com/' + bucket + '/' + dest});
             response.end();
-		}
-		else
-		{
+        }
+        else
+        {
             // else make thumb
             console.log('Cache miss.');
             // Call bin/phantomjs ...
-            var cmdLine = ['phantomjs', './src/phantom.js/thumb.js', address, '/tmp/' + dest].join(' '); 
+            var cmdLine = ['phantomjs', './src/phantom.js/thumb.js', address, './tmp/' + dest].join(' '); 
             console.log('Calling: ' + cmdLine);
             sys.exec(cmdLine, function (error, stdout, stderr) {
                 // get favicon using google.com/s2
@@ -54,28 +54,34 @@ app.get('/thumb', function(request, response) {
                     })
 
                     res.on('end', function(){
-                        var faviconPath = '/tmp/' + key + '-favicon.png';
+                        var faviconPath = './tmp/' + key + '-favicon.png';
                         fs.writeFile(faviconPath, imagedata, 'binary', function(err){
                             if (err) throw err
                             // shrink dest and composite favicon into bottom left corner (drop shadow?)
-                            var cmdLine = ['convert', '/tmp/' + dest, 
+                            var cmdLine = ['convert', './tmp/' + dest, 
                                            '-resize ' + size + 'x' + size,,
                                            '-gravity South-West',
                                            '-draw "image over 0,0, 0,0 \'' + faviconPath + '\'"',
-                                           '/tmp/' + dest].join(' ');
+                                           './tmp/' + dest].join(' ');
                             console.log('Calling: ' + cmdLine);
-                            sys.exec(cmdLine, function (error, stdout, stderr) {
+                            sys.exec(cmdLine, function (err, stdout, stderr) {
+                                if (err) throw err;
+                                console.log('Reading contents of: ./tmp/' + dest);
                                 // Read the image file as data
-                                fs.readFile('/tmp/' + dest, function (err, data) {
+                                fs.readFile('./tmp/' + dest, function (err, data) {
+                                    if (err) throw err;
+                                    console.log('Uploading to S3: ./tmp/' + dest + ' to ' + bucket + '/' + dest);
                                     // upload to s3
                                     s3.client.putObject({Bucket: bucket,
                                                          Key: dest,
                                                          ContentType: 'image/jpeg',
                                                          ACL: 'public-read',
                                                          Body: data}, function () {
-										// remove tmp files
-										fs.unlink('/tmp/' + dest, function () {
+                                        console.log('Upload complete. Removing tmp files');
+                                        // remove tmp files
+                                        fs.unlink('./tmp/' + dest, function () {
                                             fs.unlink(faviconPath, function () {
+                                                console.log('Sending response');
                                                 // redirect to s3
                                                 response.writeHead(302, {'Location': 'http://s3.amazonaws.com/' + bucket + '/' + dest});
                                                 response.end();
